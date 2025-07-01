@@ -2,6 +2,12 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 ## Getting Started
 
+Copy .env.sample and add your creds
+```
+cp .env.sample .env
+echo "DATABASE_URL=postgres://..." >> .env
+```
+
 First, run the development server:
 
 ```bash

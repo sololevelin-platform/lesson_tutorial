@@ -21,10 +21,11 @@ export async function GET(_: Request, { params }: { params: { id: string } }) {
 }
 
 export async function PUT(req: Request, { params }: { params: { id: string } }) {
-  const { title, content } = await req.json();
+  const { title, content, image } = await req.json();
+  
   const updated = await prisma.lesson.update({
     where: { id: params.id },
-    data: { title, content },
+    data: { title, content, image },
   });
   return NextResponse.json(updated);
 }

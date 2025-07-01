@@ -12,16 +12,16 @@ model User {
   email     String   @unique
   mobile    String
   password  String
-  lessons   Lesson[]
   createdAt DateTime @default(now())
+  lessons   Lesson[]
 }
 
 model Lesson {
   id        String   @id @default(uuid())
   title     String
   content   String
-  image     String?   // <-- optional image field
-  userId    String
-  user      User     @relation(fields: [userId], references: [id])
   createdAt DateTime @default(now())
+  userId    String
+  image     String?
+  user      User     @relation(fields: [userId], references: [id])
 }
