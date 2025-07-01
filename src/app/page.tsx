@@ -1,8 +1,19 @@
+// app/page.tsx (HomePage)
+'use client';
+
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+
 export default function HomePage() {
+  const router = useRouter();
+
+  useEffect(() => {
+    router.push('/login');
+  }, [router]);
+
   return (
     <main>
-      <h1>lesson tutorial</h1>
-      <p>main page</p>
+      <h1>Redirecting...</h1>
     </main>
   );
 }
