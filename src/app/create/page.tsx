@@ -1,61 +1,81 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useEffect, useState } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 
 export default function CreateLessonPage() {
   const searchParams = useSearchParams();
-  const lessonId = searchParams.get('id');
-  const [title, setTitle] = useState('');
-  const [content, setContent] = useState('');
-  const [image, setImage] = useState('');
+  const lessonSlug = searchParams.get("slug");
+  const [title, setTitle] = useState("");
+  const [content, setContent] = useState("");
+  const [image, setImage] = useState("");
   const [imageFile, setImageFile] = useState<File | null>(null);
+  const [markdownFile, setMarkdownFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [contentInputMethod, setContentInputMethod] = useState<"text" | "file">(
+    "text"
+  );
   const router = useRouter();
 
   useEffect(() => {
-    if (!lessonId) return;
+    if (!lessonSlug) return;
 
     const fetchLesson = async () => {
       try {
-        const res = await fetch(`/api/lessons/${lessonId}`);
+        const res = await fetch(`/api/lessons/${lessonSlug}`);
         if (!res.ok) {
-          console.error('Failed to fetch lesson');
+          console.error("Failed to fetch lesson");
           return;
         }
         const data = await res.json();
         setTitle(data.lesson.title);
         setContent(data.lesson.content);
-        setImage(data.lesson.image || '');
+        setImage(data.lesson.image || "");
       } catch (error) {
-        console.error('Error loading lesson:', error);
+        console.error("Error loading lesson:", error);
       }
     };
 
     fetchLesson();
-  }, [lessonId]);
+  }, [lessonSlug]);
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       setImageFile(file);
-      
+
       const previewUrl = URL.createObjectURL(file);
       setImage(previewUrl);
     }
   };
 
+  const handleMarkdownFileChange = async (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setMarkdownFile(file);
+
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const fileContent = event.target?.result as string;
+        setContent(fileContent);
+      };
+      reader.readAsText(file);
+    }
+  };
+
   const uploadImage = async (file: File): Promise<string> => {
     const formData = new FormData();
-    formData.append('image', file);
+    formData.append("image", file);
 
-    const response = await fetch('/api/upload', {
-      method: 'POST',
+    const response = await fetch("/api/upload", {
+      method: "POST",
       body: formData,
     });
 
     if (!response.ok) {
-      throw new Error('Failed to upload image');
+      throw new Error("Failed to upload image");
     }
 
     const data = await response.json();
@@ -73,23 +93,39 @@ export default function CreateLessonPage() {
         imageUrl = await uploadImage(imageFile);
       }
 
-      const method = lessonId ? 'PUT' : 'POST';
-      const url = lessonId ? `/api/lessons/${lessonId}` : '/api/lessons';
+      const method = lessonSlug ? "PUT" : "POST";
+      const url = lessonSlug ? `/api/lessons/${lessonSlug}` : "/api/lessons";
 
       const response = await fetch(url, {
         method,
-        headers: { 'Content-Type': 'application/json' },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ title, content, image: imageUrl }),
       });
 
       if (!response.ok) {
-        throw new Error('Failed to save lesson');
+        throw new Error("Failed to save lesson");
       }
 
-      router.push('/dashboard');
+      const result = await response.json();
+      console.log("API Response:", result);
+
+      if (lessonSlug) {
+        const newSlug = result.slug || lessonSlug;
+        if (newSlug !== lessonSlug) {
+          router.push(`/lessons/${newSlug}`);
+        } else {
+          router.push("/dashboard");
+        }
+      } else {
+        const newSlug = result.slug;
+        if (newSlug) {
+          router.push(`/lessons/${newSlug}`);
+        } else {
+          router.push("/dashboard");
+        }
+      }
     } catch (error) {
-      console.error('Error saving lesson:', error);
-      // You might want to show an error message to the user here
+      console.error("Error saving lesson:", error);
     } finally {
       setIsUploading(false);
     }
@@ -98,10 +134,13 @@ export default function CreateLessonPage() {
   return (
     <div className="max-w-3xl mx-auto mt-12 px-6">
       <h2 className="text-2xl font-bold mb-6">
-        {lessonId ? 'Edit Lesson' : 'Create Lesson'}
+        {lessonSlug ? "Edit Lesson" : "Create Lesson"}
       </h2>
 
-      <form onSubmit={handleSubmit} className="space-y-6 bg-white p-6 shadow rounded">
+      <form
+        onSubmit={handleSubmit}
+        className="space-y-6 bg-white p-6 shadow rounded"
+      >
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Lesson Title
@@ -137,15 +176,63 @@ export default function CreateLessonPage() {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Lesson Content
-          </label>
+          <div className="flex items-center justify-between mb-4">
+            <label className="block text-sm font-medium text-gray-700">
+              Lesson Content (Markdown Supported)
+            </label>
+          </div>
+
+          {/* Content Input Method Toggle */}
+          <div className="mb-4">
+            <div className="flex space-x-4">
+              <label className="flex items-center">
+                <input
+                  type="radio"
+                  value="text"
+                  checked={contentInputMethod === "text"}
+                  onChange={(e) =>
+                    setContentInputMethod(e.target.value as "text" | "file")
+                  }
+                  className="mr-2"
+                />
+                Type Content
+              </label>
+              <label className="flex items-center">
+                <input
+                  type="radio"
+                  value="file"
+                  checked={contentInputMethod === "file"}
+                  onChange={(e) =>
+                    setContentInputMethod(e.target.value as "text" | "file")
+                  }
+                  className="mr-2"
+                />
+                Upload Markdown File
+              </label>
+            </div>
+          </div>
+
+          {contentInputMethod === "file" && (
+            <div className="mb-4">
+              <input
+                type="file"
+                accept=".md,.markdown,.txt"
+                onChange={handleMarkdownFileChange}
+                className="w-full border border-gray-300 px-4 py-2 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+              {markdownFile && (
+                <p className="mt-2 text-sm text-gray-600">
+                  Loaded: {markdownFile.name}
+                </p>
+              )}
+            </div>
+          )}
+
           <textarea
             value={content}
             onChange={(e) => setContent(e.target.value)}
-            placeholder="Enter lesson content"
-            className="w-full border border-gray-300 px-4 py-2 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            rows={8}
+            className="w-full border border-gray-300 px-4 py-2 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-sm"
+            rows={12}
             required
           />
         </div>
@@ -156,7 +243,11 @@ export default function CreateLessonPage() {
             disabled={isUploading}
             className="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {isUploading ? 'Saving...' : lessonId ? 'Update Lesson' : 'Publish Lesson'}
+            {isUploading
+              ? "Saving..."
+              : lessonSlug
+              ? "Update Lesson"
+              : "Create Lesson"}
           </button>
         </div>
       </form>

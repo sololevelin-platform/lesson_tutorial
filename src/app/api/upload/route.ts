@@ -1,4 +1,3 @@
-// app/api/upload/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { writeFile, mkdir } from 'fs/promises';
 import path from 'path';
@@ -12,12 +11,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No file uploaded' }, { status: 400 });
     }
 
-    // Validate file type
+   
     if (!file.type.startsWith('image/')) {
       return NextResponse.json({ error: 'Only image files are allowed' }, { status: 400 });
     }
 
-    // Create unique filename
+    
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
     
@@ -25,19 +24,18 @@ export async function POST(request: NextRequest) {
     const fileExtension = path.extname(file.name);
     const fileName = `lesson_${timestamp}${fileExtension}`;
     
-    // Create uploads directory if it doesn't exist
+   
     const uploadsDir = path.join(process.cwd(), 'public', 'uploads');
     try {
       await mkdir(uploadsDir, { recursive: true });
     } catch (error) {
-      // Directory might already exist
+      
     }
 
-    // Save file
     const filePath = path.join(uploadsDir, fileName);
     await writeFile(filePath, buffer);
 
-    // Return the URL that can be used to access the file
+  
     const fileUrl = `/uploads/${fileName}`;
 
     return NextResponse.json({ url: fileUrl }, { status: 200 });

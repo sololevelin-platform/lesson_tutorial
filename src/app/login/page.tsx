@@ -1,12 +1,12 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
   const router = useRouter();
-  const [form, setForm] = useState({ email: '', password: '' });
-  const [error, setError] = useState('');
+  const [form, setForm] = useState({ email: "", password: "" });
+  const [error, setError] = useState("");
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -15,9 +15,9 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const res = await fetch('/api/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+    const res = await fetch("/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(form),
     });
 
@@ -26,7 +26,7 @@ export default function LoginPage() {
     if (!res.ok) {
       setError(data.error);
     } else {
-      router.push('/dashboard');
+      router.push("/dashboard");
     }
   };
 
@@ -51,14 +51,16 @@ export default function LoginPage() {
           onChange={handleChange}
           required
         />
-        <button type="submit" className="bg-green-600 text-white px-4 py-2 rounded">
+        <button
+          type="submit"
+          className="bg-green-600 text-white px-4 py-2 rounded"
+        >
           Login
         </button>
       </form>
 
-      {/* Sign Up Link */}
       <p className="mt-4 text-center text-sm">
-        Don&apos;t have an account?{' '}
+        Don&apos;t have an account?{" "}
         <a href="/signup" className="text-blue-600 hover:underline">
           Sign up
         </a>

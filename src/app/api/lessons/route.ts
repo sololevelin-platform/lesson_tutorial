@@ -1,28 +1,43 @@
-// app/api/lessons/route.ts
-import { NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import { NextResponse } from "next/server";
+import { PrismaClient } from "@prisma/client";
+import { generateSlug, ensureUniqueSlug } from "@/utils/slug";
 
 const prisma = new PrismaClient();
 
 export async function GET() {
-  console.log('Fetching all lessons');
+  console.log("Fetching all lessons");
 
-  const lessons = await prisma.lesson.findMany();
+  const lessons = await prisma.lesson.findMany({
+    orderBy: { createdAt: 'desc' }
+  });
   return NextResponse.json({ lessons });
 }
 
 export async function POST(req: Request) {
   const { title, content, image } = await req.json();
-  
+
+  const baseSlug = generateSlug(title);
+
+  const slug = await ensureUniqueSlug(
+    baseSlug,
+    async (checkSlug: string) => {
+      const existing = await prisma.lesson.findUnique({
+        where: { slug: checkSlug }
+      });
+      return !!existing;
+    }
+  );
+
   const lesson = await prisma.lesson.create({
-    data: { 
-      title, 
-      content, 
-      image: image || '', 
-      userId: '4c56bbf9-32be-4d0d-a6f0-42e576c7791e' 
-    }, 
+    data: {
+      title,
+      slug,
+      content,
+      image: image || "",
+      userId: "4c56bbf9-32be-4d0d-a6f0-42e576c7791e",
+    },
   });
 
-  console.log('Created lesson:', lesson);
+  console.log("Created lesson:", lesson);
   return NextResponse.json(lesson);
 }
