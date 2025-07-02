@@ -9,6 +9,7 @@ type Lesson = {
   slug: string;
   content: string;
   image?: string;
+  iframeUrl?: string;
   createdAt: string;
 };
 
@@ -34,10 +35,8 @@ export default function DashboardPage() {
     });
   };
 
-
   const markdownToHtml = (markdown: string) => {
     let html = markdown;
-    
     
     html = html.replace(/^### (.*$)/gim, '<h3 class="text-lg font-semibold">$1</h3>');
     html = html.replace(/^## (.*$)/gim, '<h2 class="text-xl font-bold">$1</h2>');
@@ -68,6 +67,15 @@ export default function DashboardPage() {
     return text.length > maxLength ? text.slice(0, maxLength) + "..." : text;
   };
 
+  const getDomainFromUrl = (url: string) => {
+    try {
+      const domain = new URL(url).hostname;
+      return domain.replace('www.', '');
+    } catch {
+      return 'External Content';
+    }
+  };
+
   return (
     <div className="max-w-6xl mx-auto mt-12 px-6 space-y-8">
       <div className="flex justify-between items-center">
@@ -92,9 +100,23 @@ export default function DashboardPage() {
               className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden cursor-pointer group"
               onClick={() => router.push(`/lessons/${lesson.slug}`)}
             >
-              {/* Image Section */}
-              <div className="h-48 bg-gray-200 overflow-hidden">
-                {lesson.image ? (
+              {/* Media Section - Image or Iframe */}
+              <div className="h-48 bg-gray-200 overflow-hidden relative">
+                {lesson.iframeUrl ? (
+                  <>
+                    <iframe
+                      src={lesson.iframeUrl}
+                      className="w-full h-full border-0 pointer-events-none"
+                      title={lesson.title}
+                    />
+                    {/* Overlay to prevent iframe interaction and show it's embedded content */}
+                    <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition-all duration-300 flex items-end justify-end p-3">
+                      <div className="bg-black bg-opacity-60 text-white text-xs px-2 py-1 rounded">
+                        📺 {getDomainFromUrl(lesson.iframeUrl)}
+                      </div>
+                    </div>
+                  </>
+                ) : lesson.image ? (
                   <img
                     src={lesson.image}
                     alt={lesson.title}
@@ -103,7 +125,7 @@ export default function DashboardPage() {
                 ) : (
                   <div className="w-full h-full bg-gradient-to-br from-blue-100 to-indigo-200 flex items-center justify-center">
                     <div className="text-gray-500">
-                      <p className="text-sm">No Image</p>
+                      <p className="text-sm">No Media</p>
                     </div>
                   </div>
                 )}

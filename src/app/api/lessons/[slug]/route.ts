@@ -4,10 +4,15 @@ import { generateSlug, ensureUniqueSlug } from "@/utils/slug";
 
 const prisma = new PrismaClient();
 
-export async function GET(_: Request, { params }: { params: { slug: string } }) {
+export async function GET(
+  req: Request,
+  { params }: { params: { slug: string } }
+) {
+  const { slug } = params;
+
   try {
     const lesson = await prisma.lesson.findUnique({
-      where: { slug: params.slug },
+      where: { slug },
     });
 
     if (!lesson) {
@@ -16,10 +21,8 @@ export async function GET(_: Request, { params }: { params: { slug: string } }) 
 
     return NextResponse.json({ lesson });
   } catch (error) {
-    return NextResponse.json(
-      { error: "Failed to fetch lesson" },
-      { status: 500 }
-    );
+    console.error("Error fetching lesson:", error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
 
@@ -27,65 +30,67 @@ export async function PUT(
   req: Request,
   { params }: { params: { slug: string } }
 ) {
-  const { title, content, image } = await req.json();
+  const { slug } = params;
+  const { title, content, image, iframeUrl } = await req.json();
 
   try {
+    // Generate new slug if title changed
     const currentLesson = await prisma.lesson.findUnique({
-      where: { slug: params.slug }
+      where: { slug },
     });
 
     if (!currentLesson) {
       return NextResponse.json({ error: "Lesson not found" }, { status: 404 });
     }
 
-    let newSlug = params.slug;
-
-    if (currentLesson.title !== title) {
+    let newSlug = slug;
+    if (title !== currentLesson.title) {
       const baseSlug = generateSlug(title);
       newSlug = await ensureUniqueSlug(
         baseSlug,
         async (checkSlug: string) => {
+          if (checkSlug === slug) return false; // Allow keeping current slug
           const existing = await prisma.lesson.findUnique({
             where: { slug: checkSlug }
           });
           return !!existing;
-        },
-        params.slug 
+        }
       );
     }
 
-    const updated = await prisma.lesson.update({
-      where: { slug: params.slug },
-      data: { 
-        title, 
+    const updatedLesson = await prisma.lesson.update({
+      where: { slug },
+      data: {
+        title,
         slug: newSlug,
-        content, 
-        image 
+        content,
+        image: image || null,
+        iframeUrl: iframeUrl || null,
       },
     });
-    
-    return NextResponse.json(updated);
+
+    console.log("Updated lesson:", updatedLesson);
+    return NextResponse.json(updatedLesson);
   } catch (error) {
-    return NextResponse.json(
-      { error: "Failed to update lesson" },
-      { status: 500 }
-    );
+    console.error("Error updating lesson:", error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
 
 export async function DELETE(
-  _: Request,
+  req: Request,
   { params }: { params: { slug: string } }
 ) {
+  const { slug } = params;
+
   try {
     await prisma.lesson.delete({
-      where: { slug: params.slug },
+      where: { slug },
     });
-    return NextResponse.json({ success: true });
+
+    return NextResponse.json({ message: "Lesson deleted successfully" });
   } catch (error) {
-    return NextResponse.json(
-      { error: "Failed to delete lesson" },
-      { status: 500 }
-    );
+    console.error("Error deleting lesson:", error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

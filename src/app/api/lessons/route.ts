@@ -14,30 +14,55 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-  const { title, content, image } = await req.json();
+  try {
+    console.log("POST request received");
+    
+    const body = await req.json();
+    console.log("Request body:", body);
+    
+    const { title, content, image, iframeUrl } = body;
 
-  const baseSlug = generateSlug(title);
-
-  const slug = await ensureUniqueSlug(
-    baseSlug,
-    async (checkSlug: string) => {
-      const existing = await prisma.lesson.findUnique({
-        where: { slug: checkSlug }
-      });
-      return !!existing;
+    // Validate required fields
+    if (!title || !content) {
+      return NextResponse.json(
+        { error: "Title and content are required" },
+        { status: 400 }
+      );
     }
-  );
 
-  const lesson = await prisma.lesson.create({
-    data: {
-      title,
-      slug,
-      content,
-      image: image || "",
-      userId: "4c56bbf9-32be-4d0d-a6f0-42e576c7791e",
-    },
-  });
+    const baseSlug = generateSlug(title);
+    console.log("Generated base slug:", baseSlug);
 
-  console.log("Created lesson:", lesson);
-  return NextResponse.json(lesson);
+    const slug = await ensureUniqueSlug(
+      baseSlug,
+      async (checkSlug: string) => {
+        const existing = await prisma.lesson.findUnique({
+          where: { slug: checkSlug }
+        });
+        return !!existing;
+      }
+    );
+
+    console.log("Final slug:", slug);
+
+    const lesson = await prisma.lesson.create({
+      data: {
+        title,
+        slug,
+        content,
+        image: image || null,
+        iframeUrl: iframeUrl || null,
+        userId: "4c56bbf9-32be-4d0d-a6f0-42e576c7791e",
+      },
+    });
+
+    console.log("Created lesson:", lesson);
+    return NextResponse.json(lesson);
+  } catch (error) {
+    console.error("Error in POST /api/lessons:", error);
+    return NextResponse.json(
+      { error: "Internal server error", details: error instanceof Error ? error.message : "Unknown error" },
+      { status: 500 }
+    );
+  }
 }

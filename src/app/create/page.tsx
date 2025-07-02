@@ -10,11 +10,13 @@ export default function CreateLessonPage() {
   const [content, setContent] = useState("");
   const [image, setImage] = useState("");
   const [imageFile, setImageFile] = useState<File | null>(null);
+  const [iframeUrl, setIframeUrl] = useState("");
   const [markdownFile, setMarkdownFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [contentInputMethod, setContentInputMethod] = useState<"text" | "file">(
     "text"
   );
+  const [mediaType, setMediaType] = useState<"image" | "iframe">("image");
   const router = useRouter();
 
   useEffect(() => {
@@ -31,6 +33,14 @@ export default function CreateLessonPage() {
         setTitle(data.lesson.title);
         setContent(data.lesson.content);
         setImage(data.lesson.image || "");
+        setIframeUrl(data.lesson.iframeUrl || "");
+        
+        // Set media type based on what data is present
+        if (data.lesson.iframeUrl) {
+          setMediaType("iframe");
+        } else if (data.lesson.image) {
+          setMediaType("image");
+        }
       } catch (error) {
         console.error("Error loading lesson:", error);
       }
@@ -87,23 +97,44 @@ export default function CreateLessonPage() {
     setIsUploading(true);
 
     try {
-      let imageUrl = image;
+      let imageUrl = "";
+      let finalIframeUrl = "";
 
-      if (imageFile) {
-        imageUrl = await uploadImage(imageFile);
+      if (mediaType === "image") {
+        if (imageFile) {
+          imageUrl = await uploadImage(imageFile);
+        } else if (image) {
+          imageUrl = image;
+        }
+      } else if (mediaType === "iframe") {
+        finalIframeUrl = iframeUrl;
       }
 
       const method = lessonSlug ? "PUT" : "POST";
       const url = lessonSlug ? `/api/lessons/${lessonSlug}` : "/api/lessons";
 
+      const requestBody = { 
+        title, 
+        content, 
+        image: mediaType === "image" ? imageUrl : null,
+        iframeUrl: mediaType === "iframe" ? finalIframeUrl : null
+      };
+
+      console.log("Sending request:", { method, url, body: requestBody });
+
       const response = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title, content, image: imageUrl }),
+        body: JSON.stringify(requestBody),
       });
 
+      console.log("Response status:", response.status);
+      console.log("Response headers:", response.headers);
+
       if (!response.ok) {
-        throw new Error("Failed to save lesson");
+        const errorText = await response.text();
+        console.error("Error response:", errorText);
+        throw new Error(`Failed to save lesson: ${response.status} ${errorText}`);
       }
 
       const result = await response.json();
@@ -126,8 +157,18 @@ export default function CreateLessonPage() {
       }
     } catch (error) {
       console.error("Error saving lesson:", error);
+      alert(`Error saving lesson: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setIsUploading(false);
+    }
+  };
+
+  const isValidUrl = (url: string) => {
+    try {
+      new URL(url);
+      return true;
+    } catch {
+      return false;
     }
   };
 
@@ -155,23 +196,91 @@ export default function CreateLessonPage() {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Lesson Image
+          <label className="block text-sm font-medium text-gray-700 mb-4">
+            Media Content
           </label>
-          <input
-            type="file"
-            accept="image/*"
-            onChange={handleImageChange}
-            className="w-full border border-gray-300 px-4 py-2 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          />
-          {image && (
-            <div className="mt-4">
-              <img
-                src={image}
-                alt="Lesson preview"
-                className="w-full max-w-md h-48 object-cover rounded-md border"
-              />
+          
+          <div className="mb-4">
+            <div className="flex space-x-4">
+              <label className="flex items-center">
+                <input
+                  type="radio"
+                  value="image"
+                  checked={mediaType === "image"}
+                  onChange={(e) =>
+                    setMediaType(e.target.value as "image" | "iframe")
+                  }
+                  className="mr-2"
+                />
+                Upload Image
+              </label>
+              <label className="flex items-center">
+                <input
+                  type="radio"
+                  value="iframe"
+                  checked={mediaType === "iframe"}
+                  onChange={(e) =>
+                    setMediaType(e.target.value as "image" | "iframe")
+                  }
+                  className="mr-2"
+                />
+                Embed Content (iframe)
+              </label>
             </div>
+          </div>
+
+          {mediaType === "image" && (
+            <>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleImageChange}
+                className="w-full border border-gray-300 px-4 py-2 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+              {image && (
+                <div className="mt-4">
+                  <img
+                    src={image}
+                    alt="Lesson preview"
+                    className="w-full max-w-md h-48 object-cover rounded-md border"
+                  />
+                </div>
+              )}
+            </>
+          )}
+
+          {mediaType === "iframe" && (
+            <>
+              <input
+                type="url"
+                value={iframeUrl}
+                onChange={(e) => setIframeUrl(e.target.value)}
+                placeholder="Enter URL (e.g., YouTube, Google Maps, CodePen, etc.)"
+                className="w-full border border-gray-300 px-4 py-2 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+              <p className="text-sm text-gray-500 mt-2">
+                Enter a URL to embed content like YouTube videos, Google Maps, interactive demos, etc.
+              </p>
+              {iframeUrl && isValidUrl(iframeUrl) && (
+                <div className="mt-4">
+                  <p className="text-sm font-medium text-gray-700 mb-2">Preview:</p>
+                  <div className="border rounded-md overflow-hidden">
+                    <iframe
+                      src={iframeUrl}
+                      className="w-full h-64"
+                      frameBorder="0"
+                      allowFullScreen
+                      title="Embedded content preview"
+                    />
+                  </div>
+                </div>
+              )}
+              {iframeUrl && !isValidUrl(iframeUrl) && (
+                <p className="text-sm text-red-600 mt-2">
+                  Please enter a valid URL
+                </p>
+              )}
+            </>
           )}
         </div>
 
@@ -182,7 +291,6 @@ export default function CreateLessonPage() {
             </label>
           </div>
 
-          {/* Content Input Method Toggle */}
           <div className="mb-4">
             <div className="flex space-x-4">
               <label className="flex items-center">

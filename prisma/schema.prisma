@@ -24,5 +24,6 @@ model Lesson {
   createdAt DateTime @default(now())
   userId    String
   image     String?
+  iframeUrl String?
   user      User     @relation(fields: [userId], references: [id])
 }
