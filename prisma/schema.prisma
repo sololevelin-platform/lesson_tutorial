@@ -8,22 +8,40 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(uuid())
-  email     String   @unique
-  mobile    String
-  password  String
-  createdAt DateTime @default(now())
-  lessons   Lesson[]
+  id        String    @id @default(uuid())
+  email     String    @unique
+  password  String    
+  name      String?   
+  mobile    String?   
+  image     String?
+  createdAt DateTime  @default(now())
+  courses   Course[]
+}
+
+model Course {
+  id          String   @id @default(uuid()) @map("id")
+  title       String   @unique
+  slug        String   @unique
+  description String
+  image       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  lessons     Lesson[]
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
 }
 
 model Lesson {
-  id        String   @id @default(uuid())
+  id        String   @id @default(uuid()) @map("id")
   title     String
-  slug      String?   @unique
+  slug      String   @unique
   content   String
-  createdAt DateTime @default(now())
-  userId    String
   image     String?
   iframeUrl String?
-  user      User     @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  courseId String
+  course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
 }

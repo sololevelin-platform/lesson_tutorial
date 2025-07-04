@@ -1,11 +1,14 @@
 "use client";
-
 import { useEffect, useState } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
+import { useSearchParams, useRouter, useParams } from "next/navigation";
 
 export default function CreateLessonPage() {
+  const router = useRouter();
   const searchParams = useSearchParams();
-  const lessonSlug = searchParams.get("slug");
+  const params = useParams();
+  const courseSlug = params.slug as string;
+  const lessonSlug = searchParams.get("lessonSlug");
+
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [image, setImage] = useState("");
@@ -17,14 +20,13 @@ export default function CreateLessonPage() {
     "text"
   );
   const [mediaType, setMediaType] = useState<"image" | "iframe">("image");
-  const router = useRouter();
 
   useEffect(() => {
-    if (!lessonSlug) return;
+    if (!lessonSlug || !courseSlug) return;
 
     const fetchLesson = async () => {
       try {
-        const res = await fetch(`/api/lessons/${lessonSlug}`);
+        const res = await fetch(`/api/courses/${courseSlug}/lessons/${lessonSlug}`);
         if (!res.ok) {
           console.error("Failed to fetch lesson");
           return;
@@ -34,8 +36,7 @@ export default function CreateLessonPage() {
         setContent(data.lesson.content);
         setImage(data.lesson.image || "");
         setIframeUrl(data.lesson.iframeUrl || "");
-        
-        // Set media type based on what data is present
+
         if (data.lesson.iframeUrl) {
           setMediaType("iframe");
         } else if (data.lesson.image) {
@@ -47,13 +48,12 @@ export default function CreateLessonPage() {
     };
 
     fetchLesson();
-  }, [lessonSlug]);
+  }, [lessonSlug, courseSlug]);
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       setImageFile(file);
-
       const previewUrl = URL.createObjectURL(file);
       setImage(previewUrl);
     }
@@ -65,7 +65,6 @@ export default function CreateLessonPage() {
     const file = e.target.files?.[0];
     if (file) {
       setMarkdownFile(file);
-
       const reader = new FileReader();
       reader.onload = (event) => {
         const fileContent = event.target?.result as string;
@@ -103,7 +102,7 @@ export default function CreateLessonPage() {
       if (mediaType === "image") {
         if (imageFile) {
           imageUrl = await uploadImage(imageFile);
-        } else if (image) {
+        } else if (image && !image.startsWith('blob:')) {
           imageUrl = image;
         }
       } else if (mediaType === "iframe") {
@@ -111,13 +110,15 @@ export default function CreateLessonPage() {
       }
 
       const method = lessonSlug ? "PUT" : "POST";
-      const url = lessonSlug ? `/api/lessons/${lessonSlug}` : "/api/lessons";
+      const url = lessonSlug
+        ? `/api/courses/${courseSlug}/lessons/${lessonSlug}`
+        : `/api/courses/${courseSlug}/lessons`;
 
-      const requestBody = { 
-        title, 
-        content, 
+      const requestBody = {
+        title,
+        content,
         image: mediaType === "image" ? imageUrl : null,
-        iframeUrl: mediaType === "iframe" ? finalIframeUrl : null
+        iframeUrl: mediaType === "iframe" ? finalIframeUrl : null,
       };
 
       console.log("Sending request:", { method, url, body: requestBody });
@@ -140,21 +141,7 @@ export default function CreateLessonPage() {
       const result = await response.json();
       console.log("API Response:", result);
 
-      if (lessonSlug) {
-        const newSlug = result.slug || lessonSlug;
-        if (newSlug !== lessonSlug) {
-          router.push(`/lessons/${newSlug}`);
-        } else {
-          router.push("/dashboard");
-        }
-      } else {
-        const newSlug = result.slug;
-        if (newSlug) {
-          router.push(`/lessons/${newSlug}`);
-        } else {
-          router.push("/dashboard");
-        }
-      }
+      router.push(`/courses/${courseSlug}`);
     } catch (error) {
       console.error("Error saving lesson:", error);
       alert(`Error saving lesson: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -175,7 +162,7 @@ export default function CreateLessonPage() {
   return (
     <div className="max-w-3xl mx-auto mt-12 px-6">
       <h2 className="text-2xl font-bold mb-6">
-        {lessonSlug ? "Edit Lesson" : "Create Lesson"}
+        {lessonSlug ? "Edit Lesson" : "Create New Lesson"} for Course: {courseSlug}
       </h2>
 
       <form
@@ -199,7 +186,7 @@ export default function CreateLessonPage() {
           <label className="block text-sm font-medium text-gray-700 mb-4">
             Media Content
           </label>
-          
+
           <div className="mb-4">
             <div className="flex space-x-4">
               <label className="flex items-center">
